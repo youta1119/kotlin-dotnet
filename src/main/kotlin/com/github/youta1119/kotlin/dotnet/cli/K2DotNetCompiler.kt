@@ -21,6 +21,9 @@ import org.jetbrains.kotlin.config.Services
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.utils.KotlinPaths
 import java.io.File
+import java.nio.file.*
+import java.nio.file.attribute.BasicFileAttributes
+import kotlin.streams.toList
 
 open class K2DotNetCompiler : CLICompiler<K2DotNetCompilerArguments>() {
 
@@ -60,9 +63,8 @@ open class K2DotNetCompiler : CLICompiler<K2DotNetCompilerArguments>() {
         arguments.freeArgs.forEach {
             configuration.addKotlinSourceRoot(it, it in commonSources)
         }
-        File("stdlib").listFiles()?.forEach {
-            val path = it.absolutePath
-           configuration.addKotlinSourceRoot(path, path in commonSources)
+        loadStdlibs("./stdlib").forEach {
+            configuration.addKotlinSourceRoot(it, it in commonSources)
         }
         val moduleName = arguments.moduleName ?: DEFAULT_MODULE_NAME
         configuration.put(CommonConfigurationKeys.MODULE_NAME, moduleName)
@@ -99,8 +101,11 @@ open class K2DotNetCompiler : CLICompiler<K2DotNetCompilerArguments>() {
         fun main(args: Array<String>) {
             doMain(K2DotNetCompiler(), args)
         }
-
     }
 }
 
+fun loadStdlibs(path: String) : List<String>{
+    //val files = mutableListOf<String>()
+    return Files.walk(Paths.get(path)).filter { it.toFile().extension == "kt" }.map { it.toString() }.toList()
+}
 fun main(args: Array<String>) = K2DotNetCompiler.main(args)
