@@ -1,8 +1,21 @@
 package com.github.youta1119.kotlin.dotnet.compiler
 
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns
+import org.jetbrains.kotlin.descriptors.ModuleDescriptor
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.platform.konan.KonanPlatform
 import org.jetbrains.kotlin.platform.konan.KonanPlatforms
+import org.jetbrains.kotlin.storage.StorageManager
+
+
+val STDLIB_MODULE_NAME = Name.special("<stdlib>")
+
+fun ModuleDescriptor.isStdlib(): Boolean {
+    return name == STDLIB_MODULE_NAME
+}
+
+class DotNetBuiltIns(storageManager: StorageManager) : KotlinBuiltIns(storageManager)
 
 @Suppress("DEPRECATION_ERROR")
 object DotNetPlatform {
