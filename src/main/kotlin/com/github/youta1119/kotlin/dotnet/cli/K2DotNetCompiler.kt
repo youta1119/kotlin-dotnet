@@ -1,6 +1,7 @@
 package com.github.youta1119.kotlin.dotnet.cli
 
 import com.github.youta1119.kotlin.dotnet.compiler.Config
+import com.github.youta1119.kotlin.dotnet.compiler.DotNetConfigurationKeys
 import com.github.youta1119.kotlin.dotnet.compiler.runTopLevelPhases
 import com.github.youta1119.kotlin.dotnet.compiler.toplevelPhase
 import com.intellij.openapi.Disposable
@@ -37,7 +38,10 @@ open class K2DotNetCompiler : CLICompiler<K2DotNetCompilerArguments>() {
         )
         val project = environment.project
         val messageCollector = configuration.get(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY) ?: MessageCollector.NONE
-        configuration.put(CLIConfigurationKeys.PHASE_CONFIG, createPhaseConfig(toplevelPhase, arguments, messageCollector))
+        configuration.put(
+            CLIConfigurationKeys.PHASE_CONFIG,
+            createPhaseConfig(toplevelPhase, arguments, messageCollector)
+        )
         val config = Config(project, configuration)
         return try {
             runTopLevelPhases(config, environment)
@@ -61,9 +65,12 @@ open class K2DotNetCompiler : CLICompiler<K2DotNetCompilerArguments>() {
         arguments.freeArgs.forEach {
             configuration.addKotlinSourceRoot(it, it in commonSources)
         }
-        /*loadStdlibs("./stdlib").forEach {
-            configuration.addKotlinSourceRoot(it, it in commonSources)
-        }*/
+        with(DotNetConfigurationKeys) {
+            with(configuration) {
+                arguments.moduleName?.let { put(MODULE_NAME, it) }
+                arguments.outputName?.let { put(OUTPUT_NAME, it) }
+            }
+        }
     }
 
     override fun createArguments(): K2DotNetCompilerArguments =
