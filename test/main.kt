@@ -1,6 +1,7 @@
 fun main() {
     println("hello")
     println(foo())
+    foo()
     bar()
 }
 

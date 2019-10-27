@@ -62,34 +62,41 @@ class CodeGeneratorVisitor(context: Context) : IrElementVisitorVoid, Closeable {
             is IrCall -> evaluateCall(expression)
             is IrConst<*> -> evaluateConst(expression)
             is IrReturn -> evaluateReturn(expression)
+            is IrTypeOperatorCall -> evaluateTypeOperatorCall(expression)
             else -> TODO(ir2string(expression))
         }
     }
 
-    private fun evaluateConst(const: IrConst<*>): Expression {
-        val kind = const.kind
+    private fun evaluateConst(value: IrConst<*>): Expression {
+        val kind = value.kind
         return when (kind) {
-            is IrConstKind.String -> StringValueExpression(kind.valueOf(const))
-            is IrConstKind.Int -> Int32ValueExpression(kind.valueOf(const))
-            else -> TODO("unsupported ir type :${ir2string(const)}")
+            is IrConstKind.String -> ConstValueExpression.StringValueExpression(kind.valueOf(value))
+            is IrConstKind.Int -> ConstValueExpression.Int32ValueExpression(kind.valueOf(value))
+            else -> TODO("unsupported ir type :${ir2string(value)}")
         }
     }
 
 
-    private fun evaluateCall(call: IrCall): Expression {
-        val calleeFunction = call.symbol.owner.target
+    private fun evaluateCall(value: IrCall): Expression {
+        val calleeFunction = value.symbol.owner.target
         val fqName = calleeFunction.fqNameForIrSerialization
         val returnType = calleeFunction.returnType.toDotnetType()
-        val args = call.getArguments().map { (_, expr) -> evaluateExpression(expr) }
+        val args = value.getArguments().map { (_, expr) -> evaluateExpression(expr) }
         return CallFunctionExpression(
-            name = fqName,
-            argument = args,
-            returnType = returnType
+            name = fqName, argument = args, returnType = returnType
         )
     }
 
     private fun evaluateReturn(declaration: IrReturn): Expression {
         return evaluateExpression(declaration.value)
+    }
+
+    private fun evaluateTypeOperatorCall(value: IrTypeOperatorCall): Expression {
+        return when (value.operator) {
+            IrTypeOperator.IMPLICIT_COERCION_TO_UNIT ->
+                TypeOperatorCallExpression.ImplicitVoidCastExpression(evaluateExpression(value.argument))
+            else -> TODO("unsupported type operation: ${ir2string(value)}")
+        }
     }
 
     override fun close() {
