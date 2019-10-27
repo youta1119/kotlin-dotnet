@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+##############################################################################
+# Copyright 2002-2011, LAMP/EPFL
+# Copyright 2011-2015, JetBrains
+#
+# This is free software; see the distribution for copying conditions.
+# There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+##############################################################################
+declare -a java_args
+declare -a java_opts
+declare -a kotlin_args
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -D*)
+      java_args=("${java_args[@]}" "$1")
+      shift
+      ;;
+    -J*)
+      java_args=("${java_args[@]}" "${1:2}")
+      shift
+      ;;
+    *)
+      kotlin_args=("${kotlin_args[@]}" "$1")
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$JAVACMD" -a -n "$JAVA_HOME" -a -x "$JAVA_HOME/bin/java" ]; then
+    JAVACMD="$JAVA_HOME/bin/java"
+fi
+
+[ -n "$JAVA_OPTS" ] || JAVA_OPTS="-Xmx256M -Xms32M"
+BASE_DIR=$(dirname $(cd $(dirname $BASH_SOURCE); pwd))
+java_opts=(-ea \
+            -Xmx3G \
+            -XX:TieredStopAtLevel=1 \
+            "-Dkotlin.dotnet.home=${BASE_DIR}/dotnet" \
+            -Dfile.encoding=UTF-8 \
+            ${JAVA_OPTS})
+
+COMPILER_JAR="${BASE_DIR}"/build/libs/kotlin-compiler.jar
+"${JAVACMD:=java}" "${java_opts[@]}" "${java_args[@]}" -jar "$COMPILER_JAR" "${kotlin_args[@]}"

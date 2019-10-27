@@ -20,11 +20,23 @@ class Config(val project: Project, val configuration: CompilerConfiguration) {
     val outputName: String
         get() = configuration.get(DotNetConfigurationKeys.OUTPUT_NAME) ?: DEFAULT_OUTPUT_NAME
 
-    val tempFile = this.createTempFile(outputName, ".il")
+    val ilAsmFile = this.createTempFile()
 
-    private fun createTempFile(prefix: String, suffix: String): File {
-        val tempFile = Files.createTempFile(prefix, suffix)
-        return File(tempFile.toUri()).also { it.deleteOnExit() }
+    private fun createTempFile(): File {
+        val pathToTemporaryDir = configuration.get(DotNetConfigurationKeys.TEMPORARY_FILES_DIR)?.let { Paths.get(it) }
+        val deleteOnExit = pathToTemporaryDir == null
+
+        val pathToTempFile = if (pathToTemporaryDir != null) {
+            pathToTemporaryDir.toFile().mkdirs()
+            File(pathToTemporaryDir.toString(),"$outputName.il").toPath()
+        } else {
+            Files.createTempFile(outputName, ".il")
+        }
+        val file = pathToTempFile.toFile()
+        if (deleteOnExit) {
+            file.deleteOnExit()
+        }
+        return file
     }
 
     companion object {

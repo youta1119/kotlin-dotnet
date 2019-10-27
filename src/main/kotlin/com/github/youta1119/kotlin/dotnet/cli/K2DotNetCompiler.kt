@@ -19,7 +19,7 @@ import org.jetbrains.kotlin.config.Services
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.utils.KotlinPaths
 
-open class K2DotNetCompiler : CLICompiler<K2DotNetCompilerArguments>() {
+class K2DotNetCompiler : CLICompiler<K2DotNetCompilerArguments>() {
 
     override val performanceManager: CommonCompilerPerformanceManager by lazy {
         K2DotNetCompilerPerformanceManager()
@@ -43,6 +43,12 @@ open class K2DotNetCompiler : CLICompiler<K2DotNetCompilerArguments>() {
             createPhaseConfig(toplevelPhase, arguments, messageCollector)
         )
         val config = Config(project, configuration)
+        if (environment.getSourceFiles().isEmpty()) {
+            if (arguments.version) return ExitCode.OK
+
+            messageCollector.report(CompilerMessageSeverity.ERROR, "No source files")
+            return ExitCode.COMPILATION_ERROR
+        }
         return try {
             runTopLevelPhases(config, environment)
             ExitCode.OK
@@ -69,6 +75,7 @@ open class K2DotNetCompiler : CLICompiler<K2DotNetCompilerArguments>() {
             with(configuration) {
                 arguments.moduleName?.let { put(MODULE_NAME, it) }
                 arguments.outputName?.let { put(OUTPUT_NAME, it) }
+                arguments.temporaryFilesDir?.let { put(TEMPORARY_FILES_DIR, it) }
             }
         }
     }
