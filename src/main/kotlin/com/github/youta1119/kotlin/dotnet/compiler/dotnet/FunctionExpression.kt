@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.name.Name
 
 class FunctionExpression(
     private val name: Name,
+    private val variables: List<VariableInfo>,
     private val body: List<Expression>,
     private val isEntryPoint: Boolean,
     private val maxStackSize: Int = 8,
@@ -17,6 +18,9 @@ class FunctionExpression(
             writer.write(".entrypoint")
         }
         writer.write(".maxstack $maxStackSize")
+        variables.forEach {
+            writer.write(".locals (${it.type} V_${it.index})")
+        }
         body.forEach { it.emit(writer) }
         writer.write("ret")
         writer.unindent()

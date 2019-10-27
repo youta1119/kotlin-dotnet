@@ -4,12 +4,15 @@ import com.github.youta1119.kotlin.dotnet.compiler.Context
 import com.github.youta1119.kotlin.dotnet.compiler.ir.findMainEntryPoint
 import org.jetbrains.kotlin.backend.common.ir.ir2string
 import org.jetbrains.kotlin.backend.common.serialization.target
+import org.jetbrains.kotlin.descriptors.VariableDescriptor
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.backend.js.utils.asString
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.isInt
 import org.jetbrains.kotlin.ir.types.isString
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
@@ -18,6 +21,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import java.io.Closeable
+import kotlin.properties.Delegates
 
 class CodeGeneratorVisitor(context: Context) : IrElementVisitorVoid, Closeable {
     private val codeWriter = CodeWriter(context.config.ilAsmFile.printWriter())
@@ -42,19 +46,46 @@ class CodeGeneratorVisitor(context: Context) : IrElementVisitorVoid, Closeable {
         val functionName = declaration.descriptor.name
         val isEntryPoint = declaration.descriptor.fqNameSafe == entryPointFqName
         val returnType = declaration.returnType.toDotnetType()
+
+        val variables = mutableListOf<VariableInfo>()
+        val index = 0
         val body = irBody.statements.mapNotNull { statement ->
             when (statement) {
-                is IrVariable -> null
+                is IrVariable -> {
+                    statement.descriptor._index = index //TODO: refactoring later
+                    variables.add(statement.toVariableInfo())
+                    evaluateVariable(statement)
+                }
                 is IrExpression -> evaluateExpression(statement)
                 else -> TODO(ir2string(statement))
             }
         }
         FunctionExpression(
             name = functionName,
+            variables = variables,
             body = body,
             isEntryPoint = isEntryPoint,
             returnType = returnType
         ).emit(writer = codeWriter)
+    }
+
+    private fun evaluateVariable(value: IrVariable): Expression? {
+        return value.initializer?.let {
+            SetVariableValueExpression(value.toVariableInfo(), evaluateExpression(it))
+        }
+    }
+
+    private fun evaluateGetValue(value: IrGetValue): Expression {
+        val variable = value.symbol.owner as IrVariable
+        return GetVariableValueExpression(variable.toVariableInfo())
+    }
+
+    private fun evaluateSetVariable(value: IrSetVariable): Expression {
+        val variable = value.symbol.owner
+        return SetVariableValueExpression(
+            variable.toVariableInfo(),
+            evaluateExpression(value.value)
+        )
     }
 
     private fun evaluateExpression(expression: IrExpression): Expression {
@@ -63,6 +94,8 @@ class CodeGeneratorVisitor(context: Context) : IrElementVisitorVoid, Closeable {
             is IrConst<*> -> evaluateConst(expression)
             is IrReturn -> evaluateReturn(expression)
             is IrTypeOperatorCall -> evaluateTypeOperatorCall(expression)
+            is IrGetValue -> evaluateGetValue(expression)
+            is IrSetVariable -> evaluateSetVariable(expression)
             else -> TODO(ir2string(expression))
         }
     }
@@ -107,7 +140,17 @@ class CodeGeneratorVisitor(context: Context) : IrElementVisitorVoid, Closeable {
         return when {
             isString() -> DotNetPrimitiveType.STRING
             isUnit() -> DotNetPrimitiveType.VOID
+            isInt() -> DotNetPrimitiveType.INT32
             else -> TODO("unsupported ir type: ${this.asString()}")
         }
     }
+
+    private var VariableDescriptor._index: Int by Delegates.notNull()
+    private val VariableDescriptor.index: Int
+        get() = _index
+
+    private fun IrVariable.toVariableInfo(): VariableInfo {
+        return VariableInfo(descriptor.index, type.toDotnetType())
+    }
+
 }
