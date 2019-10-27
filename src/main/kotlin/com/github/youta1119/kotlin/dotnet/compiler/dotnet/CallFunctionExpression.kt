@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.name.FqName
 
 class CallFunctionExpression(
     private val name: FqName,
+    private val returnType: DotNetPrimitiveType,
     private val argument: List<Expression>
 ) : Expression {
     override fun emit(writer: CodeWriter) {
@@ -14,7 +15,7 @@ class CallFunctionExpression(
             writer.write("call void [mscorlib]System.Console::WriteLine(string)")
         } else {
 
-            writer.write("call void $name()")
+            writer.write("call $returnType $name()")
         }
     }
 }

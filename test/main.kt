@@ -1,4 +1,13 @@
 fun main() {
     println("hello")
-    println("this code run .Net")
+    println(foo())
+    bar()
+}
+
+fun foo(): String{
+    return "aaaaa"
+}
+
+fun bar(){
+    println("bar func")
 }
